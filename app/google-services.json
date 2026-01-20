@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "938527329481",
+    "project_id": "cs330-pz-6310",
+    "storage_bucket": "cs330-pz-6310.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:938527329481:android:ffccbd8f17753f36175118",
+        "android_client_info": {
+          "package_name": "com.example.dadada"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAwt5AXRXAGQH32K3N5ugT-nD42bw3DAjk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
