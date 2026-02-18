@@ -1,5 +1,6 @@
 package com.example.dadada.Repository
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.example.dadada.Domain.FilmItemModel
@@ -10,45 +11,72 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 
 class MainRepository {
-    private val firebaseDatabase = FirebaseDatabase.getInstance()
+    // Explicit URL avoids hangs when google-services.json doesn't contain firebase_database_url.
+    private val firebaseDatabase = FirebaseDatabase.getInstance(
+        "https://cs330-pz-6310-default-rtdb.europe-west1.firebasedatabase.app/"
+    )
 
     fun loadUpcoming(): LiveData<MutableList<FilmItemModel>> {
         val listData = MutableLiveData<MutableList<FilmItemModel>>()
-        val ref = firebaseDatabase.getReference("Upcoming")
-        ref.addValueEventListener(object :ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val lists = mutableListOf<FilmItemModel>()
-                    for (childSnapshot in snapshot.children) {
-                        val item = childSnapshot.getValue(FilmItemModel::class.java)
-                        item?.let {lists.add(it)}
-                    }
-                listData.value=lists
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                TODO("Not yet implemented")
-            }
-        })
+        // Try common node names and fallback to Items if upcoming list is missing.
+        loadFirstNonEmpty(
+            paths = listOf("Upcoming", "upcoming", "Upcomming", "Items")
+        ) { movies ->
+            listData.value = movies
+        }
         return listData
     }
 
     fun loadItems(): LiveData<MutableList<FilmItemModel>> {
         val listData = MutableLiveData<MutableList<FilmItemModel>>()
-        val ref = firebaseDatabase.getReference("Items")
-        ref.addValueEventListener(object :ValueEventListener {
+        loadFirstNonEmpty(
+            paths = listOf("Items", "items")
+        ) { movies ->
+            listData.value = movies
+        }
+        return listData
+    }
+
+    private fun loadFirstNonEmpty(
+        paths: List<String>,
+        index: Int = 0,
+        onResult: (MutableList<FilmItemModel>) -> Unit
+    ) {
+        if (index >= paths.size) {
+            onResult(mutableListOf())
+            return
+        }
+
+        val path = paths[index]
+        val ref = firebaseDatabase.getReference(path)
+        ref.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val lists = mutableListOf<FilmItemModel>()
-                for (childSnapshot in snapshot.children) {
-                    val item = childSnapshot.getValue(FilmItemModel::class.java)
-                    item?.let {lists.add(it)}
+                val movies = parseMovies(snapshot)
+                Log.d("MainRepository", "Node '$path' returned ${movies.size} movies")
+                if (movies.isNotEmpty() || index == paths.lastIndex) {
+                    onResult(movies)
+                } else {
+                    loadFirstNonEmpty(paths, index + 1, onResult)
                 }
-                listData.value=lists
             }
 
             override fun onCancelled(error: DatabaseError) {
-                TODO("Not yet implemented")
+                Log.e("MainRepository", "Node '$path' cancelled: ${error.message}")
+                loadFirstNonEmpty(paths, index + 1, onResult)
             }
         })
-        return listData
+    }
+
+    private fun parseMovies(snapshot: DataSnapshot): MutableList<FilmItemModel> {
+        val movies = mutableListOf<FilmItemModel>()
+        for (childSnapshot in snapshot.children) {
+            try {
+                val item = childSnapshot.getValue(FilmItemModel::class.java)
+                item?.let { movies.add(it) }
+            } catch (e: Exception) {
+                Log.e("MainRepository", "Parse failed for key '${childSnapshot.key}': ${e.message}")
+            }
+        }
+        return movies
     }
 }
