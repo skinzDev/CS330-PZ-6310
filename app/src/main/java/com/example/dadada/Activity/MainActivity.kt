@@ -28,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -81,6 +82,8 @@ fun MainScreen(
     onItemClick: (FilmItemModel) -> Unit = {},
     onBottomNavClick: (Int) -> Unit = {}
 ) {
+    var randomMoviePool by remember { mutableStateOf<List<FilmItemModel>>(emptyList()) }
+
     Scaffold(
         bottomBar = {
             BottomNavigationBar(
@@ -103,7 +106,11 @@ fun MainScreen(
                 .padding(3.dp)
         ) {
             FloatingActionButton(
-                onClick = {},
+                onClick = {
+                    randomMoviePool.randomOrNull()?.let { randomMovie ->
+                        onItemClick(randomMovie)
+                    }
+                },
                 modifier = Modifier.size(58.dp),
                 shape = CircleShape,
                 containerColor = colorResource(R.color.black3),
@@ -139,13 +146,21 @@ fun MainScreen(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.matchParentSize()
             )
-            MainContent(onItemClick)
+            MainContent(
+                onItemClick = onItemClick,
+                onMoviesAvailableChanged = { movies ->
+                    randomMoviePool = movies
+                }
+            )
         }
     }
 }
 
 @Composable
-fun MainContent(onItemClick: (FilmItemModel) -> Unit) {
+fun MainContent(
+    onItemClick: (FilmItemModel) -> Unit,
+    onMoviesAvailableChanged: (List<FilmItemModel>) -> Unit = {}
+) {
     val viewModel: MainViewModel = viewModel()
     val upcomingData by viewModel.upcomingMovies.observeAsState()
     val newMoviesData by viewModel.newMovies.observeAsState()
@@ -165,6 +180,12 @@ fun MainContent(onItemClick: (FilmItemModel) -> Unit) {
         upcoming
     } else {
         upcoming.filter { it.matchesQuery(searchQuery) }
+    }
+
+    LaunchedEffect(newMovies, upcoming) {
+        onMoviesAvailableChanged(
+            (newMovies + upcoming).distinctBy { "${it.Title}_${it.Year}_${it.Poster}" }
+        )
     }
 
     Column(
