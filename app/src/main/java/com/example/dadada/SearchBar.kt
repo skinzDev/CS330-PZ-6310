@@ -28,7 +28,20 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 @Preview
-fun SearchBar(hint: String = "") {
+fun SearchBarPreview() {
+    SearchBar(
+        value = "",
+        onValueChange = {},
+        hint = "Search Movies..."
+    )
+}
+
+@Composable
+fun SearchBar(
+    value: String,
+    onValueChange: (String) -> Unit,
+    hint: String = ""
+) {
     Row(
         modifier = Modifier
             .padding(horizontal = 16.dp)
@@ -49,8 +62,8 @@ fun SearchBar(hint: String = "") {
         )
         Spacer(modifier = Modifier.width(8.dp))
         TextField(
-            value = "",
-            onValueChange = {},
+            value = value,
+            onValueChange = onValueChange,
             placeholder = {
                 Text(
                     text = hint,

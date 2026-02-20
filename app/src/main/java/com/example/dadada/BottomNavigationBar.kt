@@ -1,8 +1,6 @@
 package com.example.dadada
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
@@ -18,7 +16,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -27,11 +24,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun BottomNavigationBar() {
+fun BottomNavigationBar(
+    initialSelectedItem: Int = 0,
+    onItemSelected: (BottomMenuItems, Int) -> Unit = { _, _ -> }
+) {
     val bottomMenuItemsList = prepareBottomMenu()
-    val contextForToast = LocalContext.current
     var selectedItem by remember {
-        mutableStateOf(0)
+        mutableStateOf(initialSelectedItem)
     }
 
     NavigationBar(
@@ -48,15 +47,15 @@ fun BottomNavigationBar() {
                 selected = (selectedItem == index),
                 onClick = {
                     selectedItem = index
-                    Toast.makeText(contextForToast, bottomMenuItem.label, Toast.LENGTH_SHORT).show()
+                    onItemSelected(bottomMenuItem, index)
                 },
                 icon = {
                     Icon(
                         painter = bottomMenuItem.icon,
                         contentDescription = bottomMenuItem.label,
                         modifier = Modifier
-                            .height(20.dp)
-                            .width(20.dp)
+                            .height(18.dp)
+                            .width(18.dp)
                     )
                 },
                 label = {
@@ -66,8 +65,7 @@ fun BottomNavigationBar() {
                             color = colorResource(id = R.color.white),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium
-                        ),
-                        modifier = Modifier.padding(top = 14.dp)
+                        )
                     )
                 },
                 colors = NavigationBarItemDefaults.colors(

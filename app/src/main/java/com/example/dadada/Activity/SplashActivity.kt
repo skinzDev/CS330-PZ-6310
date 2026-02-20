@@ -3,7 +3,6 @@ package com.example.dadada.Activity
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
-import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -36,15 +35,61 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.dadada.R
+import com.example.dadada.Repository.AuthRepository
+import com.example.dadada.ui.theme.DadadaTheme
+import java.util.Locale
 
 class SplashActivity : BaseActivity() {
+    private val authRepository = AuthRepository()
+
+    override fun requiresAuthentication(): Boolean = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        if (authRepository.isAuthenticated()) {
+            val prefs = getSharedPreferences(LoginActivity.PREFS_AUTH, MODE_PRIVATE)
+            val existingName = prefs.getString(LoginActivity.KEY_USERNAME, "").orEmpty().trim()
+            val uid = authRepository.currentUserId().orEmpty()
+
+            authRepository.getCurrentUser { user, _ ->
+                val resolvedUsername = user?.username
+                    ?.trim()
+                    ?.takeIf { it.isNotBlank() }
+                    ?: existingName.ifBlank { "user" }
+                val resolvedScope = if (uid.isNotBlank()) {
+                    "id_$uid"
+                } else {
+                    "name_" + resolvedUsername
+                        .lowercase(Locale.ROOT)
+                        .replace(Regex("[^a-z0-9_]"), "_")
+                        .ifBlank { "guest" }
+                }
+
+                prefs.edit()
+                    .putString(LoginActivity.KEY_USERNAME, resolvedUsername)
+                    .putString(LoginActivity.KEY_USER_SCOPE, resolvedScope)
+                    .apply()
+
+                startActivity(Intent(this, MainActivity::class.java))
+                finish()
+            }
+
+            if (uid.isBlank()) {
+                authRepository.signOut()
+            }
+
+            if (uid.isNotBlank()) return
+        }
+
         setContent {
-            IntroScreen(onGetInClick = {
-                startActivity(Intent(this, LoginActivity::class.java))
-            })
+            DadadaTheme {
+                IntroScreen(
+                    onGetInClick = {
+                        startActivity(Intent(this, LoginActivity::class.java))
+                    }
+                )
+            }
         }
     }
 }

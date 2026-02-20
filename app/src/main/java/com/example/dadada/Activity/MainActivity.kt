@@ -28,12 +28,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -43,6 +42,7 @@ import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,27 +52,41 @@ import com.example.dadada.FilmItem
 import com.example.dadada.R
 import com.example.dadada.SearchBar
 import com.example.dadada.ViewModel.MainViewModel
-import kotlinx.coroutines.delay
+import com.example.dadada.ui.theme.DadadaTheme
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 class MainActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         setContent {
-            MainScreen(onItemClick = { item ->
-                val intent = Intent(this, DetailMovieActivity::class.java)
-                intent.putExtra("object", item)
-                startActivity(intent)
-            })
+            DadadaTheme {
+                MainScreen(
+                    onItemClick = { item ->
+                        val intent = Intent(this, DetailMovieActivity::class.java)
+                        intent.putExtra("object", item)
+                        startActivity(intent)
+                    },
+                    onBottomNavClick = { index -> openBottomNavDestination(index, currentIndex = 0) }
+                )
+            }
         }
     }
 }
 
 @Preview
 @Composable
-fun MainScreen(onItemClick: (FilmItemModel) -> Unit = {}) {
+fun MainScreen(
+    onItemClick: (FilmItemModel) -> Unit = {},
+    onBottomNavClick: (Int) -> Unit = {}
+) {
     Scaffold(
-        bottomBar = { BottomNavigationBar() }, floatingActionButton = {
+        bottomBar = {
+            BottomNavigationBar(
+                onItemSelected = { _, index -> onBottomNavClick(index) }
+            )
+        }, floatingActionButton = {
         Box(
             modifier = Modifier
                 .offset(y = 58.dp)
@@ -132,33 +146,25 @@ fun MainScreen(onItemClick: (FilmItemModel) -> Unit = {}) {
 
 @Composable
 fun MainContent(onItemClick: (FilmItemModel) -> Unit) {
+    val viewModel: MainViewModel = viewModel()
+    val upcomingData by viewModel.upcomingMovies.observeAsState()
+    val newMoviesData by viewModel.newMovies.observeAsState()
 
-    val viewModel = MainViewModel()
-    val upcoming = remember {
-        mutableStateListOf<FilmItemModel>()
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val upcoming = upcomingData ?: emptyList()
+    val newMovies = newMoviesData ?: emptyList()
+    val showUpcomingLoad = upcomingData == null
+    val showNewMoviesLoading = newMoviesData == null
+
+    val displayedNewMovies = if (searchQuery.isBlank()) {
+        newMovies
+    } else {
+        newMovies.filter { it.matchesQuery(searchQuery) }
     }
-    val newMovies = remember {
-        mutableStateListOf<FilmItemModel>()
-    }
-    var showUpcomingLoad by remember { mutableStateOf(true) }
-    var showNewMoviesLoading by remember { mutableStateOf(true) }
-
-    LaunchedEffect(Unit) {
-        viewModel.loadUpcoming().observeForever {
-            upcoming.clear()
-            upcoming.addAll(it)
-            showUpcomingLoad = false
-        }
-
-        viewModel.loadItems().observeForever {
-            newMovies.clear()
-            newMovies.addAll(it)
-            showNewMoviesLoading = false
-        }
-
-        delay(10000)
-        showUpcomingLoad = false
-        showNewMoviesLoading = false
+    val displayedUpcoming = if (searchQuery.isBlank()) {
+        upcoming
+    } else {
+        upcoming.filter { it.matchesQuery(searchQuery) }
     }
 
     Column(
@@ -172,10 +178,15 @@ fun MainContent(onItemClick: (FilmItemModel) -> Unit) {
             style = TextStyle(color = Color.White, fontSize = 25.sp),
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
-                .padding(start = 16.dp, bottom = 16.dp)
-                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+                .fillMaxWidth(),
+            textAlign = TextAlign.Center
         )
-        SearchBar(hint = "Search Movies...")
+        SearchBar(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            hint = "Search Movies..."
+        )
 
         SectionTitle("New Movies")
 
@@ -195,12 +206,18 @@ fun MainContent(onItemClick: (FilmItemModel) -> Unit) {
                     color = Color.LightGray,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
+            } else if (displayedNewMovies.isEmpty()) {
+                Text(
+                    text = "No New Movies match \"$searchQuery\"",
+                    color = Color.LightGray,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
             } else {
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(horizontal = 16.dp)
                 ) {
-                    items(newMovies) { item ->
+                    items(displayedNewMovies) { item ->
                         FilmItem(item, onItemClick)
                     }
                 }
@@ -225,12 +242,18 @@ fun MainContent(onItemClick: (FilmItemModel) -> Unit) {
                     color = Color.LightGray,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
+            } else if (displayedUpcoming.isEmpty()) {
+                Text(
+                    text = "No Upcoming Movies match \"$searchQuery\"",
+                    color = Color.LightGray,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
             } else {
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(horizontal = 16.dp)
                 ) {
-                    items(upcoming) { item ->
+                    items(displayedUpcoming) { item ->
                         FilmItem(item, onItemClick)
                     }
                 }
@@ -248,4 +271,18 @@ fun SectionTitle(title: String) {
             .padding(start = 16.dp, top = 32.dp, bottom = 8.dp),
         fontWeight = FontWeight.Bold
     )
+}
+
+private fun FilmItemModel.matchesQuery(query: String): Boolean {
+    val normalizedQuery = query.trim()
+    if (normalizedQuery.isEmpty()) return true
+
+    val queryLower = normalizedQuery.lowercase()
+    val genreMatch = Genre.any { it.lowercase().contains(queryLower) }
+    val castMatch = Casts.any { it.Actor.lowercase().contains(queryLower) }
+
+    return Title.lowercase().contains(queryLower) ||
+        Description.lowercase().contains(queryLower) ||
+        genreMatch ||
+        castMatch
 }

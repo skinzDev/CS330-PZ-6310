@@ -3,13 +3,18 @@ package com.example.dadada.ui.theme
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material.MaterialTheme as MaterialTheme2
+import androidx.compose.material.ProvideTextStyle as ProvideTextStyle2
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProvideTextStyle as ProvideTextStyle3
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
@@ -40,9 +45,11 @@ fun DadadaTheme(
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    val context = LocalContext.current
+    val funnelFontFamily = remember(context) { funnelDisplayFontFamily(context) }
+
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
 
@@ -52,7 +59,18 @@ fun DadadaTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
-        content = content
+        typography = appTypography(funnelFontFamily),
+        content = {
+            MaterialTheme2(
+                typography = legacyTypography(funnelFontFamily),
+                content = {
+                    ProvideTextStyle3(TextStyle(fontFamily = funnelFontFamily)) {
+                        ProvideTextStyle2(TextStyle(fontFamily = funnelFontFamily)) {
+                            content()
+                        }
+                    }
+                }
+            )
+        }
     )
 }
